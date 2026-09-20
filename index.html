@@ -373,6 +373,22 @@ function inView(){
     .sort((a, b2) => a.d - b2.d);
 }
 
+/* Zoomed in tight, the bounds can hold two cameras while thirty sit a block
+   outside — 9 Ave @ 49 St has 2 within 250 m but 32 within 750 m. Showing only
+   what's strictly in frame hides them, so pad up to a floor with the nearest
+   ones outside and label them as such. */
+const RAIL_FLOOR = 12;
+function workingSet(){
+  const ctr = map.getCenter(), b = map.getBounds();
+  const scored = ALL
+    .map(c => ({...c, d: metresFrom(c, ctr.lat, ctr.lng), out: !b.contains([c.y, c.x])}))
+    .sort((p, q) => p.d - q.d);
+  const inside = scored.filter(c => !c.out);
+  const floor = Math.max(tiles, RAIL_FLOOR);
+  if (inside.length >= floor) return inside;
+  return inside.concat(scored.filter(c => c.out).slice(0, floor - inside.length));
+}
+
 function searchHits(){
   const q = query.trim().toLowerCase();
   const ctr = map.getCenter();
@@ -526,7 +542,7 @@ function makeFeed(cam, offset){
 /* ---------- rail ---------- */
 function buildRail(){
   const searching = query.trim().length > 0;
-  const list = searching ? searchHits() : inView();
+  const list = searching ? searchHits() : workingSet();
   const shown = list.slice(0, 300);
   rail.textContent = "";
 
@@ -579,7 +595,15 @@ function buildRail(){
   h.textContent = searching ? "Cameras by name" : "In view";
   rail.appendChild(h);
 
+  let outHeaderDone = false;
   shown.forEach(cam => {
+    if (!searching && cam.out && !outHeaderDone){
+      outHeaderDone = true;
+      const oh = document.createElement("div");
+      oh.className = "grp";
+      oh.textContent = "Nearby, just outside view";
+      rail.appendChild(oh);
+    }
     const b = document.createElement("button");
     b.className = "cam" + (cam.o ? "" : " off");
     b.setAttribute("aria-current", String(cam.i === anchor.i));
@@ -597,7 +621,7 @@ function buildRail(){
 
 /* ---------- wall (reuses tiles across rebuilds so panning doesn't blank it) ---------- */
 function build(fromMap){
-  const pool = (query.trim() ? searchHits() : inView());
+  const pool = (query.trim() ? searchHits() : workingSet());
   let picks = [];
 
   /* A map move with Follow on re-anchors to whatever is nearest the new centre.
@@ -666,7 +690,9 @@ function onMove(){
   const c = map.getCenter(), z = map.getZoom();
   history.replaceState(null, "", "#" + z + "/" + c.lat.toFixed(5) + "/" + c.lng.toFixed(5));
   const n = inView().length;
-  hint.textContent = "z" + z + " · " + n + " camera" + (n === 1 ? "" : "s") + " in view";
+  const near = ALL.filter(k => metresFrom(k, c.lat, c.lng) <= 750).length;
+  hint.textContent = "z" + z + " · " + n + " in view" +
+    (near > n ? " · " + near + " within 750 m" : "");
   clearTimeout(moveTimer);
   moveTimer = setTimeout(() => {
     if (pendingAnchor){ anchor = pendingAnchor; pendingAnchor = null; build(false); }
