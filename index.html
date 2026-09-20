@@ -942,7 +942,10 @@ function prepare(rows){
 
 prepare(SEED);
 
-fetch("cameras.json")
+/* revalidate rather than trusting the 10-minute CDN cache, so a refreshed
+   camera index reaches open pages instead of going stale for ten minutes.
+   Unchanged data comes back as a 304, so this costs a header round-trip. */
+fetch("cameras.json", {cache: "no-cache"})
   .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
   .then(rows => { if (Array.isArray(rows) && rows.length) prepare(rows); })
   .catch(() => { tally.textContent = SEED.length + " cameras (full index unavailable offline)"; });
