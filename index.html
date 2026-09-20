@@ -361,7 +361,7 @@ function paint(c){
     radius: isAnchor ? 7 : onWall ? 5.5 : c.o ? 4 : 3,
     color: isAnchor ? "#ffffff" : onWall ? "#4ec98a" : "transparent",
     weight: isAnchor ? 2 : onWall ? 1.5 : 0,
-    fillColor: !c.o ? "#e0644f" : c.e ? "#b79cf0" : c.v ? "#4ec98a" : "#f0a132",  // purple = broadcast, green = HLS
+    fillColor: !c.o ? "#e0644f" : (c.e || c.u) ? "#b79cf0" : c.v ? "#4ec98a" : "#f0a132",  // purple = embed, green = HLS
     fillOpacity: c.o ? (isAnchor || onWall ? 1 : .72) : .45
   });
 }
@@ -371,7 +371,7 @@ function drawMarkers(){
   markers = new Map();
   ALL.forEach(c => {
     const mk = L.circleMarker([c.y, c.x], {interactive:true, bubblingMouseEvents:false});
-    mk.bindTooltip(c.n + (c.e ? " · broadcast stream" : c.v ? " · live video" : "") + (c.o ? "" : " — offline"), {direction:"top", offset:[0,-4]});
+    mk.bindTooltip(c.n + (c.u ? " · webcam" : c.e ? " · broadcast stream" : c.v ? " · live video" : "") + (c.o ? "" : " — offline"), {direction:"top", offset:[0,-4]});
     mk.on("click", () => select(c, false));
     mk.addTo(dots);
     markers.set(c.i, mk);
@@ -535,16 +535,19 @@ function attachStills(root, cam, msg, onOk, onFail){
 function makeFeed(cam, offset){
   const root = document.createElement("div");
 
-  /* ---- embedded broadcast stream (EarthCam via YouTube) ---- */
-  if (cam.e){
+  /* ---- embedded stream: a YouTube broadcast (cam.e) or an operator's own
+         public embed player, e.g. Windy's (cam.u) ---- */
+  if (cam.e || cam.u){
+    const src = cam.u ||
+      "https://www.youtube-nocookie.com/embed/" + cam.e +
+      "?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1";
     root.className = "feed isvideo isembed";
     root.innerHTML =
       '<div class="feed-img">' +
         '<iframe allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen ' +
           'referrerpolicy="strict-origin-when-cross-origin" title="' + cam.n + '" ' +
-          'src="https://www.youtube-nocookie.com/embed/' + cam.e +
-          '?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1"></iframe>' +
-        '<span class="badge">broadcast</span>' +
+          'src="' + src + '"></iframe>' +
+        '<span class="badge">' + (cam.u ? "webcam" : "broadcast") + '</span>' +
       '</div>' +
       '<div class="feed-meta"><span class="nm"></span><span class="co"></span></div>';
     const co2 = root.querySelector(".co");
@@ -801,7 +804,8 @@ setInterval(() => {
   const h = feeds.length ? feeds[0].health() : "wait";
   dot.className = "dot " + (h === "wait" ? "" : h);
   const lead = feeds.length ? feeds[0].cam : null;
-  if (lead && lead.e) stat.textContent = "broadcast stream · continuous video";
+  if (lead && lead.u) stat.textContent = "webcam · operator embed";
+  else if (lead && lead.e) stat.textContent = "broadcast stream · continuous video";
   else if (lead && lead.v && h === "live") stat.textContent = "live video · HLS stream";
   else if (!period) stat.textContent = "held";
   else if (h === "live")
