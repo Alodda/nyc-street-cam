@@ -184,6 +184,15 @@
   .feed-img{position:relative;aspect-ratio:352/240;width:100%;max-width:100%;background:#000}
   .feed-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .18s linear}
   .feed-img img.on{opacity:1}
+  .feed-img video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+  .feed.isvideo{border-color:#2f6b4f}
+  .feed.isvideo.sel{border-color:var(--amber)}
+  .badge{
+    position:absolute;left:6px;top:6px;z-index:2;
+    background:rgba(18,22,27,.82);border:1px solid var(--live);color:var(--live);
+    border-radius:2px;padding:1px 5px;
+    font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.09em;text-transform:uppercase;
+  }
   .feed-img .msg[hidden]{display:none}
   .feed-img .msg{
     position:absolute;inset:0;display:grid;place-content:center;text-align:center;padding:8px;
@@ -269,24 +278,26 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js"></script>
 <script>
 /* Default view: August Wilson Theatre, W 52nd–54th between 8 Av and Broadway */
 const PIN  = {lat:40.7626, lon:-73.9840, zoom:16};
-const BASE = "https://webcams.nyctmc.org/api/cameras/";
-const url  = id => BASE + id + "/image?t=" + Date.now();
+/* Still-frame URLs now differ by source, so each camera carries its own. */
+const frameUrl = cam => cam.g + (cam.g.indexOf("?") < 0 ? "?" : "&") + "t=" + Date.now();
 
 /* Fallback set, used when cameras.json can't be fetched (e.g. opened off disk). */
+const TMC = id => "https://webcams.nyctmc.org/api/cameras/" + id + "/image";
 const SEED = [
-  {i:"3d8e276f-b179-414d-a506-679d5e559d3e", n:"Broadway @ 51 St",            a:"Manhattan", y:40.76142, x:-73.98430, o:1},
-  {i:"0a49d947-2a5b-498d-a386-2cef5ce883fa", n:"50 St Btwn 8 Ave & Broadway", a:"Manhattan", y:40.76163, x:-73.98551, o:1},
-  {i:"fc7db899-7a79-41f3-b9b1-b23ce64c5a5e", n:"7 Ave @ 49 St",               a:"Manhattan", y:40.76062, x:-73.98401, o:1},
-  {i:"4850e464-1111-4b5d-a72d-f54a0e12a789", n:"8 Ave @ 49 St",               a:"Manhattan", y:40.76139, x:-73.98663, o:1},
-  {i:"4ebe49c8-3e68-43f7-b415-da3db9f72693", n:"7 Ave @ 54 St",               a:"Manhattan", y:40.76434, x:-73.98212, o:1},
-  {i:"f3d82b25-6b10-44c7-ae89-30df075a7ac8", n:"Broadway @ 46 St- Quad North",a:"Manhattan", y:40.75904, x:-73.98531, o:1},
-  {i:"dbbf45f6-7d87-46fa-825f-454a7e2bbcad", n:"Broadway @ 46 St- Quad East", a:"Manhattan", y:40.75901, x:-73.98529, o:1},
-  {i:"1927b469-e2dc-4943-a70c-e6e52fd4c48c", n:"Broadway @ 46 St- Quad South",a:"Manhattan", y:40.75899, x:-73.98530, o:1},
-  {i:"8cd15417-5b79-4065-9165-4b6ff0ff3f53", n:"Broadway @ 46 St- Quad West", a:"Manhattan", y:40.75903, x:-73.98534, o:1}
-];
+  {i:"3d8e276f-b179-414d-a506-679d5e559d3e", n:"Broadway @ 51 St",            a:"Manhattan", y:40.76142, x:-73.98430, o:1, s:0},
+  {i:"0a49d947-2a5b-498d-a386-2cef5ce883fa", n:"50 St Btwn 8 Ave & Broadway", a:"Manhattan", y:40.76163, x:-73.98551, o:1, s:0},
+  {i:"fc7db899-7a79-41f3-b9b1-b23ce64c5a5e", n:"7 Ave @ 49 St",               a:"Manhattan", y:40.76062, x:-73.98401, o:1, s:0},
+  {i:"4850e464-1111-4b5d-a72d-f54a0e12a789", n:"8 Ave @ 49 St",               a:"Manhattan", y:40.76139, x:-73.98663, o:1, s:0},
+  {i:"4ebe49c8-3e68-43f7-b415-da3db9f72693", n:"7 Ave @ 54 St",               a:"Manhattan", y:40.76434, x:-73.98212, o:1, s:0},
+  {i:"f3d82b25-6b10-44c7-ae89-30df075a7ac8", n:"Broadway @ 46 St- Quad North",a:"Manhattan", y:40.75904, x:-73.98531, o:1, s:0},
+  {i:"dbbf45f6-7d87-46fa-825f-454a7e2bbcad", n:"Broadway @ 46 St- Quad East", a:"Manhattan", y:40.75901, x:-73.98529, o:1, s:0},
+  {i:"1927b469-e2dc-4943-a70c-e6e52fd4c48c", n:"Broadway @ 46 St- Quad South",a:"Manhattan", y:40.75899, x:-73.98530, o:1, s:0},
+  {i:"8cd15417-5b79-4065-9165-4b6ff0ff3f53", n:"Broadway @ 46 St- Quad West", a:"Manhattan", y:40.75903, x:-73.98534, o:1, s:0}
+].map(c => ({...c, g: TMC(c.i)}));
 
 let ALL    = SEED.slice();
 let byId   = new Map();
@@ -347,7 +358,7 @@ function paint(c){
     radius: isAnchor ? 7 : onWall ? 5.5 : c.o ? 4 : 3,
     color: isAnchor ? "#ffffff" : onWall ? "#4ec98a" : "transparent",
     weight: isAnchor ? 2 : onWall ? 1.5 : 0,
-    fillColor: c.o ? "#f0a132" : "#e0644f",
+    fillColor: !c.o ? "#e0644f" : c.v ? "#4ec98a" : "#f0a132",   // green = live video
     fillOpacity: c.o ? (isAnchor || onWall ? 1 : .72) : .45
   });
 }
@@ -357,7 +368,7 @@ function drawMarkers(){
   markers = new Map();
   ALL.forEach(c => {
     const mk = L.circleMarker([c.y, c.x], {interactive:true, bubblingMouseEvents:false});
-    mk.bindTooltip(c.n + (c.o ? "" : " — offline"), {direction:"top", offset:[0,-4]});
+    mk.bindTooltip(c.n + (c.v ? " · live video" : "") + (c.o ? "" : " — offline"), {direction:"top", offset:[0,-4]});
     mk.on("click", () => select(c, false));
     mk.addTo(dots);
     markers.set(c.i, mk);
@@ -487,22 +498,19 @@ function goToPlace(p){
 }
 
 /* ---------- feed tile ---------- */
-function makeFeed(cam, offset){
-  const root = document.createElement("div");
-  root.className = "feed";
-  root.innerHTML =
-    '<div class="feed-img"><img alt=""><img alt=""><div class="msg">acquiring signal</div></div>' +
-    '<div class="feed-meta"><span class="nm"></span><span class="co"></span></div>';
-
-  const imgs = root.querySelectorAll("img");
-  const msg  = root.querySelector(".msg");
-  const co   = root.querySelector(".co");
-  root.querySelector(".nm").textContent = cam.n;
+/* Builds the two crossfading <img> layers and returns a poll function. Shared by
+   still-only cameras and by video cameras that have fallen back. */
+function attachStills(root, cam, msg, onOk, onFail){
+  const box = root.querySelector(".feed-img");
+  let imgs = box.querySelectorAll("img");
+  if (imgs.length < 2){
+    box.insertAdjacentHTML("afterbegin", '<img alt=""><img alt="">');
+    imgs = box.querySelectorAll("img");
+  }
   imgs.forEach(i => i.alt = "Live traffic camera frame: " + cam.n);
 
-  let front = 0, fails = 0, lastOk = 0, inFlight = false;
-
-  function poll(){
+  let front = 0, inFlight = false;
+  return function poll(){
     if (inFlight) return;
     inFlight = true;
     const next  = imgs[1 - front];
@@ -514,18 +522,106 @@ function makeFeed(cam, offset){
       imgs[front].classList.remove("on");
       front = 1 - front;
       msg.hidden = true;
-      fails = 0;
-      lastOk = Date.now();
+      onOk();
     };
-    probe.onerror = () => {
-      inFlight = false;
-      if (++fails >= 3){ msg.hidden = false; msg.textContent = "no signal"; }
+    probe.onerror = () => { inFlight = false; onFail(); };
+    probe.src = frameUrl(cam);
+  };
+}
+
+function makeFeed(cam, offset){
+  const root = document.createElement("div");
+  root.className = "feed" + (cam.v ? " isvideo" : "");
+  root.innerHTML =
+    '<div class="feed-img">' +
+      (cam.v ? '<video muted autoplay playsinline></video>'
+             : '<img alt=""><img alt="">') +
+      '<div class="msg">acquiring signal</div>' +
+      (cam.v ? '<span class="badge">live video</span>' : '') +
+    '</div>' +
+    '<div class="feed-meta"><span class="nm"></span><span class="co"></span></div>';
+
+  const msg = root.querySelector(".msg");
+  const co  = root.querySelector(".co");
+  root.querySelector(".nm").textContent = cam.n;
+
+  let fails = 0, lastOk = 0, hls = null;
+
+  /* ---- live video: NYSDOT publishes HLS with permissive CORS ----
+     Municipal streams stall often, and some browsers refuse to run video off
+     screen, so a stalled tile falls back to polling the same camera's stills
+     rather than sitting on a frozen frame. */
+  if (cam.v){
+    const vid = root.querySelector("video");
+    vid.addEventListener("playing", () => { msg.hidden = true; lastOk = Date.now(); fails = 0; });
+    vid.addEventListener("timeupdate", () => { lastOk = Date.now(); });
+    /* Muted autoplay is permitted but not automatic — ask for it explicitly. */
+    const kick = () => { const p = vid.play(); if (p) p.catch(() => {}); };
+    vid.addEventListener("loadedmetadata", kick);
+    vid.addEventListener("canplay", kick);
+
+    if (window.Hls && Hls.isSupported()){
+      hls = new Hls({liveDurationInfinity:true, lowLatencyMode:true});
+      hls.loadSource(cam.v);
+      hls.attachMedia(vid);
+      hls.on(Hls.Events.MANIFEST_PARSED, kick);
+      hls.on(Hls.Events.ERROR, (_e, data) => {
+        if (!data.fatal) return;
+        if (++fails >= 3){ msg.hidden = false; msg.textContent = "stream unavailable"; }
+        else if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+        else hls.recoverMediaError();
+      });
+    } else if (vid.canPlayType("application/vnd.apple.mpegurl")){
+      vid.src = cam.v;                                   // Safari plays HLS natively
+    } else {
+      msg.hidden = false; msg.textContent = "no HLS support";
+    }
+
+    const f = {
+      el: root, cam, offset,
+      poll(){ if (f.fellBack) stillPoll(); },
+      destroy(){ clearInterval(watch); if (hls) hls.destroy(); },
+      setDist(d){ co.textContent = fmt(d); root.title = cam.n + " · " + fmt(d) + " from map centre"; },
+      health(){
+        if (fails >= 3) return "dead";
+        if (!lastOk) return "wait";
+        return Date.now() - lastOk < 6000 ? "live" : "stale";
+      },
+      lastOk: () => lastOk,
+      fellBack: false
     };
-    probe.src = url(cam.i);
+
+    /* Swap to still frames if the stream stops advancing. */
+    let seen = -1, strikes = 0, stillPoll = () => {};
+    const watch = setInterval(() => {
+      if (f.fellBack) return;
+      if (vid.currentTime > seen + 0.25){ seen = vid.currentTime; strikes = 0; return; }
+      if (++strikes < 3) return;
+      f.fellBack = true;
+      clearInterval(watch);
+      if (hls) { hls.destroy(); hls = null; }
+      vid.remove();
+      const badge = root.querySelector(".badge");
+      if (badge){ badge.textContent = "stills"; badge.style.color = "var(--ink-dim)"; badge.style.borderColor = "var(--line)"; }
+      root.classList.remove("isvideo");
+      stillPoll = attachStills(root, cam, msg, () => { fails = 0; lastOk = Date.now(); },
+                                                () => { if (++fails >= 3){ msg.hidden = false; msg.textContent = "no signal"; } });
+      stillPoll();
+    }, 2500);
+
+    f.setDist(cam.d || 0);
+    root.addEventListener("click", () => select(cam, false));
+    return f;
   }
+
+  /* ---- still-frame branch ---- */
+  const poll = attachStills(root, cam, msg,
+    () => { fails = 0; lastOk = Date.now(); },
+    () => { if (++fails >= 3){ msg.hidden = false; msg.textContent = "no signal"; } });
 
   const f = {
     el: root, cam, offset, poll,
+    destroy(){},
     setDist(d){ co.textContent = fmt(d); root.title = cam.n + " · " + fmt(d) + " from map centre"; },
     health(){
       if (fails >= 3) return "dead";
@@ -644,7 +740,7 @@ function build(fromMap){
     wall.appendChild(f.el);
     return f;
   });
-  keep.forEach(f => f.el.remove());
+  keep.forEach(f => { f.destroy(); f.el.remove(); });   // tear down HLS, don't leak the buffer
 
   wall.className = "wall n" + tiles;
   curNm.textContent = tiles === 1 ? anchor.n : anchor.n + " + " + (feeds.length - 1);
@@ -675,7 +771,9 @@ function loop(){
 setInterval(() => {
   const h = feeds.length ? feeds[0].health() : "wait";
   dot.className = "dot " + (h === "wait" ? "" : h);
-  if (!period) stat.textContent = "held";
+  const isVid = feeds.length && feeds[0].cam.v;
+  if (isVid && h === "live") stat.textContent = "live video · HLS stream";
+  else if (!period) stat.textContent = "held";
   else if (h === "live")
     stat.textContent = "live · polling " + (period / 1000) + "s · last frame " +
       ((Date.now() - feeds[0].lastOk()) / 1000).toFixed(1) + "s ago";
