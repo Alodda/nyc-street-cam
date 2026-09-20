@@ -8,7 +8,7 @@ A single-file viewer for New York City's public DOT traffic cameras, focused on 
 
 ## What it does
 
-- Carries **2,218 cameras** — the full NYC DOT/TMC index (983), the 511NY/NYSDOT network merged in, and three EarthCam broadcast streams. 1,284 carry live video
+- Carries **2,229 cameras** — the full NYC DOT/TMC index (983), the 511NY/NYSDOT network merged in, and 14 broadcast webcams (Times Square street level, Bryant Park, SUMMIT One Vanderbilt, Brooklyn Bridge and others). 1,284 carry live video
 - **An interactive map picks the area.** Every camera is a dot; pan and zoom to choose a neighbourhood and the list and the wall follow the map bounds, nearest to the centre first. Click a dot to anchor on that camera
 - Street map or satellite imagery, and shortcuts back to W 53rd St or out to all five boroughs
 - The map position is written to the URL, so a link reopens the same view — for example [`#16/40.76260/-73.98400`](https://alodda.github.io/nyc-street-cam/#16/40.76260/-73.98400)

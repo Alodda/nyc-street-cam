@@ -801,7 +801,7 @@ setInterval(() => {
   const h = feeds.length ? feeds[0].health() : "wait";
   dot.className = "dot " + (h === "wait" ? "" : h);
   const lead = feeds.length ? feeds[0].cam : null;
-  if (lead && lead.e) stat.textContent = "broadcast stream · EarthCam";
+  if (lead && lead.e) stat.textContent = "broadcast stream · continuous video";
   else if (lead && lead.v && h === "live") stat.textContent = "live video · HLS stream";
   else if (!period) stat.textContent = "held";
   else if (h === "live")
