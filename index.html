@@ -185,6 +185,9 @@
   .feed-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .18s linear}
   .feed-img img.on{opacity:1}
   .feed-img video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+  .feed-img iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+  .feed.isembed{border-color:#6b4fa8}
+  .feed.isembed .badge{color:#b79cf0;border-color:#6b4fa8}
   .feed.isvideo{border-color:#2f6b4f}
   .feed.isvideo.sel{border-color:var(--amber)}
   .badge{
@@ -358,7 +361,7 @@ function paint(c){
     radius: isAnchor ? 7 : onWall ? 5.5 : c.o ? 4 : 3,
     color: isAnchor ? "#ffffff" : onWall ? "#4ec98a" : "transparent",
     weight: isAnchor ? 2 : onWall ? 1.5 : 0,
-    fillColor: !c.o ? "#e0644f" : c.v ? "#4ec98a" : "#f0a132",   // green = live video
+    fillColor: !c.o ? "#e0644f" : c.e ? "#b79cf0" : c.v ? "#4ec98a" : "#f0a132",  // purple = broadcast, green = HLS
     fillOpacity: c.o ? (isAnchor || onWall ? 1 : .72) : .45
   });
 }
@@ -368,7 +371,7 @@ function drawMarkers(){
   markers = new Map();
   ALL.forEach(c => {
     const mk = L.circleMarker([c.y, c.x], {interactive:true, bubblingMouseEvents:false});
-    mk.bindTooltip(c.n + (c.v ? " · live video" : "") + (c.o ? "" : " — offline"), {direction:"top", offset:[0,-4]});
+    mk.bindTooltip(c.n + (c.e ? " · broadcast stream" : c.v ? " · live video" : "") + (c.o ? "" : " — offline"), {direction:"top", offset:[0,-4]});
     mk.on("click", () => select(c, false));
     mk.addTo(dots);
     markers.set(c.i, mk);
@@ -531,6 +534,32 @@ function attachStills(root, cam, msg, onOk, onFail){
 
 function makeFeed(cam, offset){
   const root = document.createElement("div");
+
+  /* ---- embedded broadcast stream (EarthCam via YouTube) ---- */
+  if (cam.e){
+    root.className = "feed isvideo isembed";
+    root.innerHTML =
+      '<div class="feed-img">' +
+        '<iframe allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen ' +
+          'referrerpolicy="strict-origin-when-cross-origin" title="' + cam.n + '" ' +
+          'src="https://www.youtube-nocookie.com/embed/' + cam.e +
+          '?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1"></iframe>' +
+        '<span class="badge">broadcast</span>' +
+      '</div>' +
+      '<div class="feed-meta"><span class="nm"></span><span class="co"></span></div>';
+    const co2 = root.querySelector(".co");
+    root.querySelector(".nm").textContent = cam.n;
+    const f2 = {
+      el: root, cam, offset,
+      poll(){}, destroy(){},
+      setDist(d){ co2.textContent = fmt(d); root.title = cam.n + " · " + fmt(d) + " from map centre"; },
+      health: () => "live",
+      lastOk: () => Date.now()
+    };
+    f2.setDist(cam.d || 0);
+    return f2;                                   // no click-to-anchor: the iframe owns its clicks
+  }
+
   root.className = "feed" + (cam.v ? " isvideo" : "");
   root.innerHTML =
     '<div class="feed-img">' +
@@ -771,8 +800,9 @@ function loop(){
 setInterval(() => {
   const h = feeds.length ? feeds[0].health() : "wait";
   dot.className = "dot " + (h === "wait" ? "" : h);
-  const isVid = feeds.length && feeds[0].cam.v;
-  if (isVid && h === "live") stat.textContent = "live video · HLS stream";
+  const lead = feeds.length ? feeds[0].cam : null;
+  if (lead && lead.e) stat.textContent = "broadcast stream · EarthCam";
+  else if (lead && lead.v && h === "live") stat.textContent = "live video · HLS stream";
   else if (!period) stat.textContent = "held";
   else if (h === "live")
     stat.textContent = "live · polling " + (period / 1000) + "s · last frame " +
