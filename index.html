@@ -286,7 +286,27 @@
 /* Default view: August Wilson Theatre, W 52nd–54th between 8 Av and Broadway */
 const PIN  = {lat:40.7626, lon:-73.9840, zoom:16};
 /* Still-frame URLs now differ by source, so each camera carries its own. */
-const frameUrl = cam => cam.g + (cam.g.indexOf("?") < 0 ? "?" : "&") + "t=" + Date.now();
+function frameUrl(cam){
+  const base = cam._resolved || cam.g;        // Mesonet cams resolve at runtime (see below)
+  if (!base) return "";
+  return base + (base.indexOf("?") < 0 ? "?" : "&") + "t=" + Date.now();
+}
+
+/* NYS Mesonet publishes one still per hour under a URL keyed by epoch second, so
+   the current frame's URL is only knowable by asking the list API. Resolve it and
+   cache on the cam; re-resolve every few minutes. CORS is open. */
+function resolveMesonet(cam){
+  const pad = n => String(n).padStart(2, "0");
+  const fmt = d => d.getUTCFullYear() + pad(d.getUTCMonth()+1) + pad(d.getUTCDate()) + "T" +
+                   pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds());
+  const now = new Date(), then = new Date(now - 4*3600*1000);
+  const api = "https://api.nysmesonet.org/cam/index.php/list/nysm/" + cam.m + "/" + fmt(then) + "/" + fmt(now);
+  return fetch(api).then(r => r.json()).then(j => {
+    const ph = (j.photos || []);
+    if (ph.length) cam._resolved = ph[ph.length - 1].url;
+    return cam._resolved;
+  }).catch(() => null);
+}
 
 /* Fallback set, used when cameras.json can't be fetched (e.g. opened off disk). */
 const TMC = id => "https://webcams.nyctmc.org/api/cameras/" + id + "/image";
@@ -647,13 +667,22 @@ function makeFeed(cam, offset){
   }
 
   /* ---- still-frame branch ---- */
-  const poll = attachStills(root, cam, msg,
+  const rawPoll = attachStills(root, cam, msg,
     () => { fails = 0; lastOk = Date.now(); },
     () => { if (++fails >= 3){ msg.hidden = false; msg.textContent = "no signal"; } });
 
+  /* Mesonet: resolve the hourly URL first, then poll; re-resolve every 4 min. */
+  let poll = rawPoll, mesoTimer = null;
+  if (cam.m){
+    msg.textContent = "resolving latest frame";
+    poll = () => { if (cam._resolved) rawPoll(); };
+    resolveMesonet(cam).then(u => { if (u) rawPoll(); else { msg.hidden = false; msg.textContent = "no frame"; } });
+    mesoTimer = setInterval(() => resolveMesonet(cam), 240000);
+  }
+
   const f = {
     el: root, cam, offset, poll,
-    destroy(){},
+    destroy(){ if (mesoTimer) clearInterval(mesoTimer); },
     setDist(d){ co.textContent = fmt(d); root.title = cam.n + " · " + fmt(d) + " from map centre"; },
     health(){
       if (fails >= 3) return "dead";
