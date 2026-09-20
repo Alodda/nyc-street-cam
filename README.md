@@ -8,12 +8,14 @@ A single-file viewer for New York City's public DOT traffic cameras, focused on 
 
 ## What it does
 
-- Opens on **Broadway @ 51 St**, the fastest camera on that block — a new frame roughly every second
-- 24 cameras grouped by area: the five nearest W 53rd St (with distance), Midtown, the four-way Times Square quad, and a handful elsewhere in the city
-- **Single** or **Quad** layout — quad shows the selected camera plus the next three, all refreshing together
-- Refresh rate: 1s / 2s / 5s / Hold
+- Carries **all 983 cameras** in the NYC TMC index (980 currently online), each measured against a pin at W 53rd St & Broadway
+- Radius filter: 300 m / 500 m / 800 m / 1.2 km / 2 km / all of NYC. Around the pin that's 5, 16, 42, 78 and 140 cameras respectively
+- Free-text filter by street or intersection
+- Wall sizes of **1, 4, 9 or 16** tiles — the wall fills outward from the selected camera in distance order, so "16" on the 800 m radius is the sixteen nearest feeds at once
+- Opens on **Broadway @ 51 St**, the fastest camera on the block — a new frame roughly every second
+- Refresh rate: 1s / 2s / 5s / Hold, with polls staggered across the interval so a 16-tile wall doesn't fire sixteen simultaneous requests
 - Live / stale / offline indicator — amber after 6s with no new frame, red after three failed pulls
-- Arrow keys change camera, space toggles Hold
+- Click any tile to make it the anchor; arrow keys step through the filtered list; space toggles Hold
 
 ## Data source
 
@@ -38,13 +40,29 @@ Measured refresh cadence on the W 53rd cluster:
 
 ## How it's built
 
-One `index.html`, no build step, no dependencies beyond two Google Fonts. Each tile is two stacked `<img>` elements; the next frame loads into the hidden one and only swaps once it has decoded, so the image never flickers or flashes white between refreshes.
+`index.html` plus `cameras.json`. No build step, no dependencies beyond two Google Fonts.
+
+Each tile is two stacked `<img>` elements; the next frame loads into the hidden one and only swaps once it has decoded, so the image never flickers or flashes white between refreshes.
+
+`cameras.json` is a trimmed snapshot of the TMC index — id, name, borough, coordinates, online flag — at 123 KB. It's fetched same-origin at load, which works on the hosted site. Opening `index.html` straight off disk makes that fetch fail, and the page falls back to nine cameras embedded in the source, so the local copy still runs.
+
+To refresh the snapshot:
+
+```bash
+curl -s https://webcams.nyctmc.org/api/cameras/ | node -e '
+const rows=JSON.parse(require("fs").readFileSync(0,"utf8"));
+process.stdout.write(JSON.stringify(rows.map(c=>({
+  i:c.id, n:c.name, a:c.area,
+  y:+(+c.latitude).toFixed(5), x:+(+c.longitude).toFixed(5),
+  o:String(c.isOnline)==="true"?1:0
+}))));' > cameras.json
+```
 
 ## Known limitation
 
 The camera endpoint returns no `Access-Control-Allow-Origin` header. Displaying frames in an `<img>` works fine, but anything that reads pixels does not — drawing a frame to a canvas taints it, so `toBlob()` and `captureStream()` both throw. That rules out in-page recording, timelapse export, or any client-side computer vision. Doing any of that needs a small proxy re-serving the frames same-origin.
 
-The full camera list is fetched from the same origin-less endpoint, so it can't be loaded at runtime either; the 24 cameras here are embedded in the page. Adding more means pasting another entry into the `CAMS` array — name, UUID, coordinates.
+It's also why the index ships as a committed file rather than being fetched live from the TMC: a browser can't read that endpoint cross-origin.
 
 ## What these cameras are not
 

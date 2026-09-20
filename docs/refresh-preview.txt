@@ -1,0 +1,6 @@
+docs/preview.png is rendered with:
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    --headless=old --disable-gpu --hide-scrollbars --window-size=1400,900 \
+    --virtual-time-budget=9000 \
+    --screenshot=docs/preview.png http://localhost:PORT/index.html
+Serve the folder first so cameras.json loads; a file:// render falls back to the seed list.
