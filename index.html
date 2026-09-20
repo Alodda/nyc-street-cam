@@ -176,8 +176,8 @@
   .wall{display:grid;gap:11px;width:100%}
   .wall.n1{grid-template-columns:minmax(0,1fr);max-width:840px}
   .wall.n4{grid-template-columns:repeat(2,minmax(0,1fr));max-width:1160px}
-  .wall.n9{grid-template-columns:repeat(3,minmax(0,1fr));max-width:1480px;gap:9px}
-  .wall.n16{grid-template-columns:repeat(4,minmax(0,1fr));max-width:1780px;gap:7px}
+  .wall.n6{grid-template-columns:repeat(3,minmax(0,1fr));max-width:1480px;gap:9px}
+  .wall.n10{grid-template-columns:repeat(5,minmax(0,1fr));max-width:1800px;gap:8px}
 
   .feed{background:#000;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;cursor:pointer}
   .feed.sel{border-color:var(--amber)}
@@ -196,21 +196,8 @@
   }
   .feed-meta .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
   .feed-meta .co{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ink-faint);white-space:nowrap}
-  .wall.n16 .feed-meta .co{display:none}
+  .wall.n10 .feed-meta .co{display:none}
 
-  .notes{
-    border-top:1px solid var(--line);background:var(--panel);
-    padding:10px 18px 12px;font-size:12px;color:var(--ink-dim);line-height:1.55;
-    display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;
-  }
-  .notes > *{min-width:0;max-width:100%}
-  .notes p{margin:0;max-width:54ch}
-  .notes b{color:var(--ink);font-weight:600}
-  .cmd{
-    font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-faint);
-    background:var(--ground);border:1px solid var(--line);border-radius:var(--radius);
-    padding:6px 9px;overflow-x:auto;white-space:nowrap;
-  }
   a{color:var(--amber)}
 
   @media (prefers-reduced-motion:reduce){.feed-img img{transition:none}}
@@ -219,9 +206,9 @@
     .rail{border-right:0;border-bottom:1px solid var(--line)}
     .rail-scroll{max-height:190px}
     .mapwrap{height:280px}
-    .wall.n9,.wall.n16{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .wall.n6,.wall.n10{grid-template-columns:repeat(2,minmax(0,1fr))}
     .viewport{padding:13px}
-    .bar,.notes,.brand,.filters{padding-left:16px;padding-right:16px}
+    .bar,.brand,.filters{padding-left:16px;padding-right:16px}
   }
 </style>
 </head>
@@ -256,8 +243,8 @@
         <span class="lbl">Wall</span>
         <button data-n="1" aria-pressed="true">1</button>
         <button data-n="4" aria-pressed="false">4</button>
-        <button data-n="9" aria-pressed="false">9</button>
-        <button data-n="16" aria-pressed="false">16</button>
+        <button data-n="6" aria-pressed="false">6</button>
+        <button data-n="10" aria-pressed="false">10</button>
       </div>
       <div class="seg" role="group" aria-label="Map">
         <button id="btnMap" aria-pressed="true">Map</button>
@@ -277,14 +264,6 @@
     <div class="splitter" id="splitter" role="separator" aria-label="Resize map" tabindex="0"></div>
 
     <div class="viewport"><div class="wall n1" id="wall"></div></div>
-
-    <div class="notes">
-      <p><b>The timestamp is burned into each frame</b> — that's your proof of liveness, not anything this page prints. Pan and zoom the map to choose an area; with <b>Follow view</b> on, the wall rebuilds from the cameras inside the map bounds, nearest to the centre first. The map position lives in the URL, so a link reopens the same view.</p>
-      <div>
-        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px">Selected frame endpoint</div>
-        <div class="cmd" id="cmd"></div>
-      </div>
-    </div>
   </main>
 
 </div>
@@ -325,7 +304,6 @@ const rail  = document.getElementById("rail");
 const dot   = document.getElementById("dot");
 const stat  = document.getElementById("statusText");
 const curNm = document.getElementById("curName");
-const cmdEl = document.getElementById("cmd");
 const tally = document.getElementById("tally");
 const hint  = document.getElementById("maphint");
 
@@ -645,7 +623,6 @@ function build(fromMap){
   keep.forEach(f => f.el.remove());
 
   wall.className = "wall n" + tiles;
-  cmdEl.textContent = BASE + anchor.i + "/image";
   curNm.textContent = tiles === 1 ? anchor.n : anchor.n + " + " + (feeds.length - 1);
   ALL.forEach(paint);
 }
@@ -770,8 +747,9 @@ document.querySelectorAll("[data-ms]").forEach(b => b.addEventListener("click", 
   if (period) feeds.forEach(f => f.poll());
 }));
 
+const MAX_TILES = 10;
 document.querySelectorAll("[data-n]").forEach(b => b.addEventListener("click", () => {
-  tiles = Number(b.dataset.n);
+  tiles = Math.min(MAX_TILES, Number(b.dataset.n));
   document.querySelectorAll("[data-n]").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
   build();
   loop();

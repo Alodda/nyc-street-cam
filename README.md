@@ -13,9 +13,9 @@ A single-file viewer for New York City's public DOT traffic cameras, focused on 
 - Street map or satellite imagery, and shortcuts back to W 53rd St or out to all five boroughs
 - The map position is written to the URL, so a link reopens the same view — for example [`#16/40.76260/-73.98400`](https://alodda.github.io/nyc-street-cam/#16/40.76260/-73.98400)
 - **Search by address or place** — type `245 W 52nd St` or `August Wilson Theatre`, pick a result, and the map drops a pin and frames the address together with the cameras that cover it. Camera names are searched at the same time, in their own section
-- Wall sizes of **1, 4, 9 or 16** tiles — the wall fills outward from the selected camera in distance order, so "16" on the 800 m radius is the sixteen nearest feeds at once
+- Wall sizes of **1, 4, 6 or 10** tiles — the wall fills outward from the selected camera in distance order, so "10" gives the ten nearest feeds to wherever the map is pointed
 - Opens on **Broadway @ 51 St**, the fastest camera on the block — a new frame roughly every second
-- Refresh rate: 1s / 2s / 5s / Hold, with polls staggered across the interval so a 16-tile wall doesn't fire sixteen simultaneous requests
+- Refresh rate: 1s / 2s / 5s / Hold, with polls staggered across the interval so a full wall doesn't fire ten simultaneous requests
 - Live / stale / offline indicator — amber after 6s with no new frame, red after three failed pulls
 - Click any tile to make it the anchor; arrow keys step through the filtered list; space toggles Hold
 
