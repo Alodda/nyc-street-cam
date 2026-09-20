@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   :root{
     --ground:#12161b;
@@ -26,46 +27,33 @@
   *{box-sizing:border-box}
   html,body{height:100%}
   body{
-    margin:0;
-    background:var(--ground);
-    color:var(--ink);
+    margin:0;background:var(--ground);color:var(--ink);
     font-family:"Archivo",system-ui,-apple-system,"Helvetica Neue",sans-serif;
-    font-size:14px;
-    -webkit-font-smoothing:antialiased;
+    font-size:14px;-webkit-font-smoothing:antialiased;
   }
   .shell{display:grid;grid-template-columns:288px minmax(0,1fr);height:100%}
 
   /* ---------- rail ---------- */
   .rail{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
-  .brand{padding:16px 16px 13px;border-bottom:1px solid var(--line)}
+  .brand{padding:15px 16px 12px;border-bottom:1px solid var(--line)}
   .brand h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
   .brand p{margin:4px 0 0;font-size:11px;color:var(--ink-faint);letter-spacing:.09em;text-transform:uppercase}
 
-  .filters{padding:12px 16px;border-bottom:1px solid var(--line);display:grid;gap:9px}
+  .filters{padding:11px 16px;border-bottom:1px solid var(--line);display:grid;gap:8px}
   .search{
-    width:100%;padding:7px 9px;
-    background:var(--ground);color:var(--ink);
-    border:1px solid var(--line);border-radius:var(--radius);
-    font:inherit;font-size:13px;
+    width:100%;padding:7px 9px;background:var(--ground);color:var(--ink);
+    border:1px solid var(--line);border-radius:var(--radius);font:inherit;font-size:13px;
   }
   .search::placeholder{color:var(--ink-faint)}
   .search:focus{outline:2px solid var(--amber);outline-offset:-1px;border-color:var(--amber)}
-  .radios{display:flex;flex-wrap:wrap;gap:4px}
-  .chip{
-    background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);
-    color:var(--ink-dim);font:inherit;font-size:11px;padding:3px 8px;cursor:pointer;
-    font-family:"IBM Plex Mono",monospace;
-  }
-  .chip:hover{color:var(--ink)}
-  .chip[aria-pressed="true"]{background:var(--amber);color:#1a1205;border-color:var(--amber);font-weight:500}
-  .chip:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
-  .tally{
-    font-family:"IBM Plex Mono",monospace;font-size:10.5px;
-    color:var(--ink-faint);letter-spacing:.04em;
-  }
+  .tally{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-faint);letter-spacing:.04em}
 
   .rail-scroll{overflow-y:auto;flex:1;min-height:0;padding-bottom:12px}
-  .grp{padding:13px 16px 5px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint)}
+  .grp{
+    padding:12px 16px 5px;font-size:10px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--ink-faint);
+    position:sticky;top:0;background:var(--panel);
+  }
   .cam{
     width:100%;display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:8px;
     padding:6px 16px;background:none;border:0;border-left:2px solid transparent;
@@ -74,23 +62,24 @@
   .cam:hover{background:var(--panel-2);color:var(--ink)}
   .cam:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}
   .cam[aria-current="true"]{background:var(--amber-soft);border-left-color:var(--amber);color:var(--ink);font-weight:600}
+  .cam .nmx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .cam .dist{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ink-faint);font-weight:400}
   .cam.off .nmx{opacity:.5}
   .cam.off .dist{color:var(--dead)}
-  .empty{padding:20px 16px;color:var(--ink-faint);font-size:12.5px;line-height:1.5}
+  .empty{padding:18px 16px;color:var(--ink-faint);font-size:12.5px;line-height:1.5}
 
   /* ---------- stage ---------- */
   .stage{display:flex;flex-direction:column;min-width:0;min-height:0}
   .bar{
-    display:flex;align-items:center;gap:13px;flex-wrap:wrap;
-    padding:11px 20px;border-bottom:1px solid var(--line);background:var(--panel);
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:10px 18px;border-bottom:1px solid var(--line);background:var(--panel);
   }
   .bar h2{margin:0;font-size:15px;font-weight:600}
   .spacer{flex:1}
   .seg{display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
   .seg button{
     background:var(--panel-2);border:0;border-right:1px solid var(--line);
-    color:var(--ink-dim);font:inherit;font-size:12px;padding:5px 11px;cursor:pointer;
+    color:var(--ink-dim);font:inherit;font-size:12px;padding:5px 10px;cursor:pointer;
   }
   .seg button:last-child{border-right:0}
   .seg button:hover{color:var(--ink)}
@@ -101,7 +90,6 @@
     text-transform:uppercase;padding:6px 8px;border-right:1px solid var(--line);
     display:flex;align-items:center;
   }
-
   .status{
     display:inline-flex;align-items:center;gap:7px;
     font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-dim);letter-spacing:.04em;
@@ -111,12 +99,62 @@
   .dot.stale{background:var(--stale)}
   .dot.dead{background:var(--dead)}
 
-  .viewport{flex:1;min-height:0;overflow:auto;padding:18px;display:flex;justify-content:center;align-items:flex-start}
-  .wall{display:grid;gap:12px;width:100%}
-  .wall.n1{grid-template-columns:minmax(0,1fr);max-width:860px}
-  .wall.n4{grid-template-columns:repeat(2,minmax(0,1fr));max-width:1180px}
-  .wall.n9{grid-template-columns:repeat(3,minmax(0,1fr));max-width:1500px;gap:10px}
-  .wall.n16{grid-template-columns:repeat(4,minmax(0,1fr));max-width:1800px;gap:8px}
+  /* ---------- map ---------- */
+  .mapwrap{position:relative;height:330px;flex:none;border-bottom:1px solid var(--line)}
+  .mapwrap.collapsed{height:0;border-bottom:0;overflow:hidden}
+  #map{position:absolute;inset:0;background:#0d1014}
+  /* Left edge clears Leaflet's zoom control; buttons wrap rather than cover it. */
+  .maphud{
+    position:absolute;right:10px;top:10px;left:56px;z-index:500;
+    display:flex;gap:6px;align-items:flex-start;justify-content:flex-end;flex-wrap:wrap;
+  }
+  /* OSM ships no keyless dark tiles, so invert them into one. */
+  .tiles-dark{filter:invert(1) hue-rotate(180deg) brightness(.88) contrast(.85) saturate(.22)}
+  .hudbtn{
+    background:rgba(25,30,37,.94);border:1px solid var(--line);border-radius:var(--radius);
+    color:var(--ink-dim);font:inherit;font-size:11px;padding:5px 9px;cursor:pointer;
+    font-family:"IBM Plex Mono",monospace;
+  }
+  .hudbtn:hover{color:var(--ink)}
+  .hudbtn[aria-pressed="true"]{background:var(--amber);color:#1a1205;border-color:var(--amber);font-weight:500}
+  .hudbtn:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+  .maphint{
+    position:absolute;left:10px;bottom:10px;z-index:500;
+    background:rgba(25,30,37,.94);border:1px solid var(--line);border-radius:var(--radius);
+    padding:5px 9px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-dim);
+    pointer-events:none;
+  }
+  .splitter{
+    height:7px;flex:none;background:var(--panel);border-bottom:1px solid var(--line);
+    cursor:ns-resize;display:grid;place-items:center;
+  }
+  .splitter::after{content:"";width:34px;height:2px;border-radius:2px;background:var(--line)}
+  .splitter:hover::after{background:var(--amber)}
+
+  /* Leaflet chrome, themed */
+  .leaflet-container{background:#0d1014;font-family:"Archivo",sans-serif}
+  .leaflet-bar a{
+    background:rgba(25,30,37,.96);color:var(--ink-dim);
+    border-bottom-color:var(--line);
+  }
+  .leaflet-bar a:hover{background:var(--panel-2);color:var(--ink)}
+  .leaflet-control-attribution{
+    background:rgba(18,22,27,.82)!important;color:var(--ink-faint)!important;font-size:10px!important;
+  }
+  .leaflet-control-attribution a{color:var(--ink-dim)!important}
+  .leaflet-tooltip{
+    background:rgba(25,30,37,.96);border:1px solid var(--line);color:var(--ink);
+    font-size:11.5px;box-shadow:none;
+  }
+  .leaflet-tooltip::before{border-top-color:var(--line)}
+
+  /* ---------- wall ---------- */
+  .viewport{flex:1;min-height:0;overflow:auto;padding:16px;display:flex;justify-content:center;align-items:flex-start}
+  .wall{display:grid;gap:11px;width:100%}
+  .wall.n1{grid-template-columns:minmax(0,1fr);max-width:840px}
+  .wall.n4{grid-template-columns:repeat(2,minmax(0,1fr));max-width:1160px}
+  .wall.n9{grid-template-columns:repeat(3,minmax(0,1fr));max-width:1480px;gap:9px}
+  .wall.n16{grid-template-columns:repeat(4,minmax(0,1fr));max-width:1780px;gap:7px}
 
   .feed{background:#000;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;cursor:pointer}
   .feed.sel{border-color:var(--amber)}
@@ -130,21 +168,20 @@
     letter-spacing:.08em;text-transform:uppercase;
   }
   .feed-meta{
-    display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
-    padding:6px 9px;background:var(--panel);border-top:1px solid var(--line);
-    font-size:11.5px;min-width:0;
+    display:flex;align-items:baseline;gap:8px;padding:6px 9px;
+    background:var(--panel);border-top:1px solid var(--line);font-size:11.5px;min-width:0;
   }
   .feed-meta .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
   .feed-meta .co{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ink-faint);white-space:nowrap}
-  .wall.n9 .feed-meta .co,.wall.n16 .feed-meta .co{display:none}
+  .wall.n16 .feed-meta .co{display:none}
 
   .notes{
     border-top:1px solid var(--line);background:var(--panel);
-    padding:11px 20px 13px;font-size:12px;color:var(--ink-dim);line-height:1.55;
-    display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start;
+    padding:10px 18px 12px;font-size:12px;color:var(--ink-dim);line-height:1.55;
+    display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;
   }
   .notes > *{min-width:0;max-width:100%}
-  .notes p{margin:0;max-width:52ch}
+  .notes p{margin:0;max-width:54ch}
   .notes b{color:var(--ink);font-weight:600}
   .cmd{
     font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-faint);
@@ -157,9 +194,10 @@
   @media (max-width:860px){
     .shell{grid-template-columns:1fr;height:auto}
     .rail{border-right:0;border-bottom:1px solid var(--line)}
-    .rail-scroll{max-height:200px}
+    .rail-scroll{max-height:190px}
+    .mapwrap{height:280px}
     .wall.n9,.wall.n16{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .viewport{padding:14px}
+    .viewport{padding:13px}
     .bar,.notes,.brand,.filters{padding-left:16px;padding-right:16px}
   }
 </style>
@@ -172,13 +210,10 @@
       <h1>Midtown Camera Wall</h1>
       <p>NYC DOT / TMC public feeds</p>
     </div>
-
     <div class="filters">
-      <input class="search" id="q" type="search" placeholder="Filter by street or intersection" autocomplete="off" aria-label="Filter cameras by name">
-      <div class="radios" id="radii" role="group" aria-label="Distance from W 53rd St"></div>
+      <input class="search" id="q" type="search" placeholder="Search all 983 cameras" autocomplete="off" aria-label="Search cameras by name">
       <div class="tally" id="tally">loading camera index…</div>
     </div>
-
     <div class="rail-scroll" id="rail"></div>
   </aside>
 
@@ -201,12 +236,27 @@
         <button data-n="9" aria-pressed="false">9</button>
         <button data-n="16" aria-pressed="false">16</button>
       </div>
+      <div class="seg" role="group" aria-label="Map">
+        <button id="btnMap" aria-pressed="true">Map</button>
+      </div>
     </div>
+
+    <div class="mapwrap" id="mapwrap">
+      <div id="map"></div>
+      <div class="maphud">
+        <button class="hudbtn" id="btnFollow" aria-pressed="true" title="Rebuild the wall from whatever is in view">Follow view</button>
+        <button class="hudbtn" id="btnLayer" title="Switch between the street map and satellite imagery">Satellite</button>
+        <button class="hudbtn" id="btnHome" title="Back to W 53rd St &amp; Broadway">W 53rd</button>
+        <button class="hudbtn" id="btnAll" title="Zoom out to the whole five-borough network">All NYC</button>
+      </div>
+      <div class="maphint" id="maphint">—</div>
+    </div>
+    <div class="splitter" id="splitter" role="separator" aria-label="Resize map" tabindex="0"></div>
 
     <div class="viewport"><div class="wall n1" id="wall"></div></div>
 
     <div class="notes">
-      <p><b>The timestamp is burned into each frame</b> — that's your proof of liveness, not anything this page prints. Frames are 352&times;240 at roughly 15&nbsp;KB. Broadway @ 51 St serves a new frame about every second; most others run 2–3&nbsp;s. On the bigger walls, polls are staggered across the interval so the cameras aren't all hit at once.</p>
+      <p><b>The timestamp is burned into each frame</b> — that's your proof of liveness, not anything this page prints. Pan and zoom the map to choose an area; with <b>Follow view</b> on, the wall rebuilds from the cameras inside the map bounds, nearest to the centre first. The map position lives in the URL, so a link reopens the same view.</p>
       <div>
         <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px">Selected frame endpoint</div>
         <div class="cmd" id="cmd"></div>
@@ -216,45 +266,36 @@
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-/* Pin: August Wilson Theatre, W 52nd–54th between 8 Av and Broadway */
-const PIN = {lat:40.7626, lon:-73.9840};
+/* Default view: August Wilson Theatre, W 52nd–54th between 8 Av and Broadway */
+const PIN  = {lat:40.7626, lon:-73.9840, zoom:16};
 const BASE = "https://webcams.nyctmc.org/api/cameras/";
 const url  = id => BASE + id + "/image?t=" + Date.now();
 
-/* Fallback set, used when cameras.json can't be fetched (e.g. opened as a local file). */
+/* Fallback set, used when cameras.json can't be fetched (e.g. opened off disk). */
 const SEED = [
-  {i:"3d8e276f-b179-414d-a506-679d5e559d3e", n:"Broadway @ 51 St",        a:"Manhattan", y:40.76142, x:-73.98430, o:1},
+  {i:"3d8e276f-b179-414d-a506-679d5e559d3e", n:"Broadway @ 51 St",            a:"Manhattan", y:40.76142, x:-73.98430, o:1},
   {i:"0a49d947-2a5b-498d-a386-2cef5ce883fa", n:"50 St Btwn 8 Ave & Broadway", a:"Manhattan", y:40.76163, x:-73.98551, o:1},
-  {i:"fc7db899-7a79-41f3-b9b1-b23ce64c5a5e", n:"7 Ave @ 49 St",           a:"Manhattan", y:40.76062, x:-73.98401, o:1},
-  {i:"4850e464-1111-4b5d-a72d-f54a0e12a789", n:"8 Ave @ 49 St",           a:"Manhattan", y:40.76139, x:-73.98663, o:1},
-  {i:"4ebe49c8-3e68-43f7-b415-da3db9f72693", n:"7 Ave @ 54 St",           a:"Manhattan", y:40.76434, x:-73.98212, o:1},
-  {i:"f3d82b25-6b10-44c7-ae89-30df075a7ac8", n:"Broadway @ 46 St- Quad North", a:"Manhattan", y:40.75904, x:-73.98531, o:1},
-  {i:"dbbf45f6-7d87-46fa-825f-454a7e2bbcad", n:"Broadway @ 46 St- Quad East",  a:"Manhattan", y:40.75901, x:-73.98529, o:1},
-  {i:"1927b469-e2dc-4943-a70c-e6e52fd4c48c", n:"Broadway @ 46 St- Quad South", a:"Manhattan", y:40.75899, x:-73.98530, o:1},
-  {i:"8cd15417-5b79-4065-9165-4b6ff0ff3f53", n:"Broadway @ 46 St- Quad West",  a:"Manhattan", y:40.75903, x:-73.98534, o:1}
+  {i:"fc7db899-7a79-41f3-b9b1-b23ce64c5a5e", n:"7 Ave @ 49 St",               a:"Manhattan", y:40.76062, x:-73.98401, o:1},
+  {i:"4850e464-1111-4b5d-a72d-f54a0e12a789", n:"8 Ave @ 49 St",               a:"Manhattan", y:40.76139, x:-73.98663, o:1},
+  {i:"4ebe49c8-3e68-43f7-b415-da3db9f72693", n:"7 Ave @ 54 St",               a:"Manhattan", y:40.76434, x:-73.98212, o:1},
+  {i:"f3d82b25-6b10-44c7-ae89-30df075a7ac8", n:"Broadway @ 46 St- Quad North",a:"Manhattan", y:40.75904, x:-73.98531, o:1},
+  {i:"dbbf45f6-7d87-46fa-825f-454a7e2bbcad", n:"Broadway @ 46 St- Quad East", a:"Manhattan", y:40.75901, x:-73.98529, o:1},
+  {i:"1927b469-e2dc-4943-a70c-e6e52fd4c48c", n:"Broadway @ 46 St- Quad South",a:"Manhattan", y:40.75899, x:-73.98530, o:1},
+  {i:"8cd15417-5b79-4065-9165-4b6ff0ff3f53", n:"Broadway @ 46 St- Quad West", a:"Manhattan", y:40.75903, x:-73.98534, o:1}
 ];
 
-const RADII = [
-  {m:300,   label:"300 m"},
-  {m:500,   label:"500 m"},
-  {m:800,   label:"800 m"},
-  {m:1200,  label:"1.2 km"},
-  {m:2000,  label:"2 km"},
-  {m:Infinity, label:"All NYC"}
-];
-
-let ALL = SEED.slice();
-let radius = 800;
+let ALL    = SEED.slice();
+let byId   = new Map();
 let query  = "";
 let tiles  = 1;
 let period = 1000;
+let follow = true;
 let anchor = SEED[0];
 let feeds  = [];
 let timer  = null;
-
-const metres = c => Math.round(Math.hypot((c.y - PIN.lat) * 111000, (c.x - PIN.lon) * 84000));
-const fmt = m => m < 1000 ? m + " m" : (m / 1000).toFixed(1) + " km";
+let markers = new Map();
 
 const wall  = document.getElementById("wall");
 const rail  = document.getElementById("rail");
@@ -263,6 +304,82 @@ const stat  = document.getElementById("statusText");
 const curNm = document.getElementById("curName");
 const cmdEl = document.getElementById("cmd");
 const tally = document.getElementById("tally");
+const hint  = document.getElementById("maphint");
+
+const fmt = m => m < 1000 ? Math.round(m) + " m" : (m / 1000).toFixed(1) + " km";
+function metresFrom(c, lat, lon){
+  return Math.hypot((c.y - lat) * 111000, (c.x - lon) * 84000 * Math.cos(lat * Math.PI / 180) / Math.cos(40.75 * Math.PI / 180));
+}
+
+/* ---------- map ---------- */
+const startView = (() => {
+  const m = /^#(\d+(?:\.\d+)?)\/(-?\d+\.\d+)\/(-?\d+\.\d+)$/.exec(location.hash);
+  return m ? {zoom:+m[1], lat:+m[2], lon:+m[3]} : {zoom:PIN.zoom, lat:PIN.lat, lon:PIN.lon};
+})();
+
+const map = L.map("map", {preferCanvas:true, zoomControl:true, worldCopyJump:false})
+  .setView([startView.lat, startView.lon], startView.zoom);
+
+/* Two keyless basemaps. OSM raster is darkened in CSS rather than pulling a
+   dark tile set, because every hosted dark basemap now wants an API key. */
+const LAYERS = {
+  dark: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom:19, className:"tiles-dark"
+  }),
+  satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    attribution:'Imagery &copy; Esri, Maxar, Earthstar Geographics',
+    maxZoom:19
+  })
+};
+let layerName = "dark";
+LAYERS.dark.addTo(map);
+
+const dots = L.layerGroup().addTo(map);
+
+function paint(c){
+  const mk = markers.get(c.i);
+  if (!mk) return;
+  const isAnchor = c.i === anchor.i;
+  const onWall   = feeds.some(f => f.cam.i === c.i);
+  mk.setStyle({
+    radius: isAnchor ? 7 : onWall ? 5.5 : c.o ? 4 : 3,
+    color: isAnchor ? "#ffffff" : onWall ? "#4ec98a" : "transparent",
+    weight: isAnchor ? 2 : onWall ? 1.5 : 0,
+    fillColor: c.o ? "#f0a132" : "#e0644f",
+    fillOpacity: c.o ? (isAnchor || onWall ? 1 : .72) : .45
+  });
+}
+
+function drawMarkers(){
+  dots.clearLayers();
+  markers = new Map();
+  ALL.forEach(c => {
+    const mk = L.circleMarker([c.y, c.x], {interactive:true, bubblingMouseEvents:false});
+    mk.bindTooltip(c.n + (c.o ? "" : " — offline"), {direction:"top", offset:[0,-4]});
+    mk.on("click", () => select(c, false));
+    mk.addTo(dots);
+    markers.set(c.i, mk);
+  });
+  ALL.forEach(paint);
+}
+
+function inView(){
+  const b = map.getBounds(), ctr = map.getCenter();
+  return ALL
+    .filter(c => b.contains([c.y, c.x]))
+    .map(c => ({...c, d: metresFrom(c, ctr.lat, ctr.lng)}))
+    .sort((a, b2) => a.d - b2.d);
+}
+
+function searchHits(){
+  const q = query.trim().toLowerCase();
+  const ctr = map.getCenter();
+  return ALL
+    .filter(c => c.n.toLowerCase().includes(q))
+    .map(c => ({...c, d: metresFrom(c, ctr.lat, ctr.lng)}))
+    .sort((a, b) => a.d - b.d);
+}
 
 /* ---------- feed tile ---------- */
 function makeFeed(cam, offset){
@@ -274,10 +391,9 @@ function makeFeed(cam, offset){
 
   const imgs = root.querySelectorAll("img");
   const msg  = root.querySelector(".msg");
+  const co   = root.querySelector(".co");
   root.querySelector(".nm").textContent = cam.n;
-  root.querySelector(".co").textContent = fmt(cam.d);
   imgs.forEach(i => i.alt = "Live traffic camera frame: " + cam.n);
-  root.title = cam.n + " · " + fmt(cam.d) + " from W 53rd";
 
   let front = 0, fails = 0, lastOk = 0, inFlight = false;
 
@@ -300,16 +416,12 @@ function makeFeed(cam, offset){
       inFlight = false;
       if (++fails >= 3){ msg.hidden = false; msg.textContent = "no signal"; }
     };
-    probe.src = url(cam.id || cam.i);
+    probe.src = url(cam.i);
   }
 
-  root.addEventListener("click", () => select(cam));
-
-  return {
-    el: root,
-    cam,
-    offset,
-    poll,
+  const f = {
+    el: root, cam, offset, poll,
+    setDist(d){ co.textContent = fmt(d); root.title = cam.n + " · " + fmt(d) + " from map centre"; },
     health(){
       if (fails >= 3) return "dead";
       if (!lastOk) return "wait";
@@ -317,83 +429,87 @@ function makeFeed(cam, offset){
     },
     lastOk: () => lastOk
   };
+  f.setDist(cam.d || 0);
+  root.addEventListener("click", () => select(cam, false));
+  return f;
 }
 
-/* ---------- selection + filtering ---------- */
-function visible(){
-  const q = query.trim().toLowerCase();
-  return ALL
-    .filter(c => c.d <= radius)
-    .filter(c => !q || c.n.toLowerCase().includes(q))
-    .sort((a, b) => a.d - b.d);
-}
-
+/* ---------- rail ---------- */
 function buildRail(){
-  const list = visible();
+  const searching = query.trim().length > 0;
+  const list = searching ? searchHits() : inView();
   const shown = list.slice(0, 300);
   rail.textContent = "";
 
   if (!list.length){
     const e = document.createElement("div");
     e.className = "empty";
-    e.textContent = query
-      ? 'No camera matches "' + query + '" within ' + fmt(radius) + '. Widen the radius or clear the filter.'
-      : "No cameras within " + fmt(radius) + ".";
+    e.textContent = searching
+      ? 'No camera matches "' + query + '".'
+      : "No cameras in view. Zoom out or pan to a covered area.";
     rail.appendChild(e);
     tally.textContent = "0 of " + ALL.length + " cameras";
     return;
   }
 
-  let lastGroup = null;
+  const h = document.createElement("div");
+  h.className = "grp";
+  h.textContent = searching ? "Search results" : "In view";
+  rail.appendChild(h);
+
   shown.forEach(cam => {
-    const g = radius === Infinity ? cam.a : "Within " + fmt(radius) + " of W 53rd";
-    if (g !== lastGroup){
-      const h = document.createElement("div");
-      h.className = "grp";
-      h.textContent = g;
-      rail.appendChild(h);
-      lastGroup = g;
-    }
     const b = document.createElement("button");
     b.className = "cam" + (cam.o ? "" : " off");
     b.setAttribute("aria-current", String(cam.i === anchor.i));
     b.innerHTML = '<span class="nmx"></span><span class="dist"></span>';
     b.querySelector(".nmx").textContent = cam.n;
     b.querySelector(".dist").textContent = cam.o ? fmt(cam.d) : "offline";
-    b.addEventListener("click", () => select(cam));
+    b.addEventListener("click", () => select(cam, true));
     rail.appendChild(b);
   });
 
   tally.textContent =
-    list.length + " of " + ALL.length + " cameras" +
-    (list.length > shown.length ? " · showing first " + shown.length : "");
+    list.length + (searching ? " matches" : " in view") + " · " + ALL.length + " total" +
+    (list.length > shown.length ? " · first " + shown.length + " listed" : "");
 }
 
-function build(){
-  const list = visible();
-  const start = Math.max(0, list.findIndex(c => c.i === anchor.i));
-  const picks = [];
-  for (let k = 0; picks.length < tiles && k < list.length; k++){
-    picks.push(list[(start + k) % list.length]);
-  }
-  if (!picks.length) picks.push(anchor);
+/* ---------- wall (reuses tiles across rebuilds so panning doesn't blank it) ---------- */
+function build(fromMap){
+  const pool = (query.trim() ? searchHits() : inView());
+  let picks = [];
 
-  wall.textContent = "";
-  wall.className = "wall n" + tiles;
+  /* A map move with Follow on re-anchors to whatever is nearest the new centre.
+     An explicit pick keeps its anchor and fills outward from it. */
+  const ai = fromMap ? -1 : pool.findIndex(c => c.i === anchor.i);
+  if (ai >= 0){
+    for (let k = 0; picks.length < tiles && k < pool.length; k++) picks.push(pool[(ai + k) % pool.length]);
+  } else {
+    picks = pool.slice(0, tiles);
+    if (!picks.length) picks = [{...anchor, d:0}];
+    anchor = picks[0];
+  }
+
+  const keep = new Map(feeds.map(f => [f.cam.i, f]));
   feeds = picks.map((c, idx) => {
-    const f = makeFeed(c, (idx / picks.length));
-    if (c.i === anchor.i) f.el.classList.add("sel");
+    let f = keep.get(c.i);
+    if (f){ keep.delete(c.i); f.offset = idx / picks.length; f.setDist(c.d || 0); }
+    else   { f = makeFeed(c, idx / picks.length); f.poll(); }
+    f.el.classList.toggle("sel", c.i === anchor.i);
     wall.appendChild(f.el);
     return f;
   });
-  feeds.forEach(f => f.poll());
+  keep.forEach(f => f.el.remove());
 
+  wall.className = "wall n" + tiles;
   cmdEl.textContent = BASE + anchor.i + "/image";
   curNm.textContent = tiles === 1 ? anchor.n : anchor.n + " + " + (feeds.length - 1);
+  ALL.forEach(paint);
 }
 
-function select(cam){
+function select(cam, pan){
   anchor = cam;
+  if (pan && map.getZoom() < 14) map.setView([cam.y, cam.x], 16);
+  else if (pan && !map.getBounds().contains([cam.y, cam.x])) map.panTo([cam.y, cam.x]);
   buildRail();
   build();
 }
@@ -401,13 +517,12 @@ function select(cam){
 /* ---------- polling clock, staggered ---------- */
 function loop(){
   clearInterval(timer);
-  feeds.forEach(f => { if (f._t) clearTimeout(f._t); });
   if (!period) return;
   timer = setInterval(() => {
     feeds.forEach(f => {
       const delay = f.offset * period;
       if (delay < 20) f.poll();
-      else f._t = setTimeout(() => f.poll(), delay);
+      else setTimeout(() => f.poll(), delay);
     });
   }, period);
 }
@@ -415,72 +530,97 @@ function loop(){
 setInterval(() => {
   const h = feeds.length ? feeds[0].health() : "wait";
   dot.className = "dot " + (h === "wait" ? "" : h);
-  if (!period){
-    stat.textContent = "held";
-  } else if (h === "live"){
+  if (!period) stat.textContent = "held";
+  else if (h === "live")
     stat.textContent = "live · polling " + (period / 1000) + "s · last frame " +
       ((Date.now() - feeds[0].lastOk()) / 1000).toFixed(1) + "s ago";
-  } else if (h === "stale"){
-    stat.textContent = "stale — no new frame in 6s";
-  } else if (h === "dead"){
-    stat.textContent = "camera offline";
-  } else {
-    stat.textContent = "connecting";
-  }
+  else if (h === "stale") stat.textContent = "stale — no new frame in 6s";
+  else if (h === "dead")  stat.textContent = "camera offline";
+  else stat.textContent = "connecting";
 }, 400);
 
-/* ---------- controls ---------- */
-(function radiiUI(){
-  const box = document.getElementById("radii");
-  RADII.forEach(r => {
-    const b = document.createElement("button");
-    b.className = "chip";
-    b.textContent = r.label;
-    b.setAttribute("aria-pressed", String(r.m === radius));
-    b.addEventListener("click", () => {
-      radius = r.m;
-      box.querySelectorAll(".chip").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
-      const list = visible();
-      if (list.length && !list.some(c => c.i === anchor.i)) anchor = list[0];
-      buildRail();
-      build();
-    });
-    box.appendChild(b);
+/* ---------- map wiring ---------- */
+let moveTimer = null;
+function onMove(){
+  const c = map.getCenter(), z = map.getZoom();
+  history.replaceState(null, "", "#" + z + "/" + c.lat.toFixed(5) + "/" + c.lng.toFixed(5));
+  const n = inView().length;
+  hint.textContent = "z" + z + " · " + n + " camera" + (n === 1 ? "" : "s") + " in view";
+  clearTimeout(moveTimer);
+  moveTimer = setTimeout(() => {
+    if (follow) build(true);
+    buildRail();
+  }, 220);
+}
+map.on("moveend zoomend", onMove);
+
+document.getElementById("btnFollow").addEventListener("click", e => {
+  follow = !follow;
+  e.currentTarget.setAttribute("aria-pressed", String(follow));
+  if (follow) build();
+});
+document.getElementById("btnLayer").addEventListener("click", e => {
+  map.removeLayer(LAYERS[layerName]);
+  layerName = layerName === "dark" ? "satellite" : "dark";
+  LAYERS[layerName].addTo(map).bringToBack();
+  e.currentTarget.textContent = layerName === "dark" ? "Satellite" : "Street map";
+});
+document.getElementById("btnHome").addEventListener("click", () => map.setView([PIN.lat, PIN.lon], PIN.zoom));
+document.getElementById("btnAll").addEventListener("click", () => map.setView([40.7050, -73.9400], 11));
+
+const mapwrap = document.getElementById("mapwrap");
+const splitter = document.getElementById("splitter");
+document.getElementById("btnMap").addEventListener("click", e => {
+  const off = mapwrap.classList.toggle("collapsed");
+  splitter.hidden = off;
+  e.currentTarget.setAttribute("aria-pressed", String(!off));
+  if (!off) map.invalidateSize();
+});
+
+(function resizable(){
+  let dragging = false;
+  const move = e => {
+    if (!dragging) return;
+    const top = mapwrap.getBoundingClientRect().top;
+    const h = Math.max(120, Math.min(window.innerHeight - 220, e.clientY - top));
+    mapwrap.style.height = h + "px";
+    map.invalidateSize();
+  };
+  splitter.addEventListener("mousedown", e => { dragging = true; e.preventDefault(); });
+  window.addEventListener("mousemove", move);
+  window.addEventListener("mouseup", () => { dragging = false; });
+  splitter.addEventListener("keydown", e => {
+    const cur = mapwrap.getBoundingClientRect().height;
+    if (e.key === "ArrowUp"){ mapwrap.style.height = Math.max(120, cur - 30) + "px"; map.invalidateSize(); e.preventDefault(); }
+    if (e.key === "ArrowDown"){ mapwrap.style.height = Math.min(window.innerHeight - 220, cur + 30) + "px"; map.invalidateSize(); e.preventDefault(); }
   });
 })();
 
-document.getElementById("q").addEventListener("input", e => {
-  query = e.target.value;
-  buildRail();
-});
+/* ---------- controls ---------- */
+document.getElementById("q").addEventListener("input", e => { query = e.target.value; buildRail(); });
 
-document.querySelectorAll("[data-ms]").forEach(b => {
-  b.addEventListener("click", () => {
-    period = Number(b.dataset.ms);
-    document.querySelectorAll("[data-ms]").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
-    loop();
-    if (period) feeds.forEach(f => f.poll());
-  });
-});
+document.querySelectorAll("[data-ms]").forEach(b => b.addEventListener("click", () => {
+  period = Number(b.dataset.ms);
+  document.querySelectorAll("[data-ms]").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
+  loop();
+  if (period) feeds.forEach(f => f.poll());
+}));
 
-document.querySelectorAll("[data-n]").forEach(b => {
-  b.addEventListener("click", () => {
-    tiles = Number(b.dataset.n);
-    document.querySelectorAll("[data-n]").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
-    build();
-    loop();
-  });
-});
+document.querySelectorAll("[data-n]").forEach(b => b.addEventListener("click", () => {
+  tiles = Number(b.dataset.n);
+  document.querySelectorAll("[data-n]").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
+  build();
+  loop();
+}));
 
 document.addEventListener("keydown", e => {
-  if (e.target.tagName === "INPUT") return;
-  const list = visible();
+  if (e.target.tagName === "INPUT" || e.target.classList.contains("splitter")) return;
+  const list = query.trim() ? searchHits() : inView();
   const i = list.findIndex(c => c.i === anchor.i);
-  if (i < 0) return;
   if (e.key === "ArrowDown" || e.key === "ArrowRight"){
-    e.preventDefault(); select(list[(i + 1) % list.length]);
+    e.preventDefault(); if (list.length) select(list[(i + 1 + list.length) % list.length], true);
   } else if (e.key === "ArrowUp" || e.key === "ArrowLeft"){
-    e.preventDefault(); select(list[(i - 1 + list.length) % list.length]);
+    e.preventDefault(); if (list.length) select(list[(i - 1 + list.length) % list.length], true);
   } else if (e.key === " "){
     e.preventDefault();
     (period ? document.querySelector('[data-ms="0"]') : document.querySelector('[data-ms="1000"]')).click();
@@ -489,12 +629,15 @@ document.addEventListener("keydown", e => {
 
 /* ---------- boot ---------- */
 function prepare(rows){
-  ALL = rows.map(c => ({...c, d: metres(c)})).sort((a, b) => a.d - b.d);
-  const live = ALL.filter(c => c.o);
-  anchor = live[0] || ALL[0];
+  ALL = rows.slice();
+  byId = new Map(ALL.map(c => [c.i, c]));
+  drawMarkers();
+  const pool = inView();
+  anchor = pool.find(c => c.o) || pool[0] || ALL[0];
   buildRail();
   build();
   loop();
+  onMove();
 }
 
 prepare(SEED);
@@ -502,9 +645,7 @@ prepare(SEED);
 fetch("cameras.json")
   .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
   .then(rows => { if (Array.isArray(rows) && rows.length) prepare(rows); })
-  .catch(() => {
-    tally.textContent = SEED.length + " cameras (full index unavailable offline)";
-  });
+  .catch(() => { tally.textContent = SEED.length + " cameras (full index unavailable offline)"; });
 </script>
 </body>
 </html>
