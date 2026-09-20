@@ -68,6 +68,29 @@
   .cam.off .dist{color:var(--dead)}
   .empty{padding:18px 16px;color:var(--ink-faint);font-size:12.5px;line-height:1.5}
 
+  .place{
+    width:100%;display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:8px;
+    padding:7px 16px;background:none;border:0;border-left:2px solid transparent;
+    color:var(--ink-dim);font:inherit;font-size:13px;text-align:left;cursor:pointer;
+  }
+  .place:hover{background:var(--panel-2);color:var(--ink)}
+  .place:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}
+  .place .pin{color:var(--amber);font-size:11px;line-height:1.3}
+  .place .lab{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .place .sub{
+    grid-column:2;font-family:"IBM Plex Mono",monospace;font-size:10px;
+    color:var(--ink-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .searching{
+    padding:7px 16px;font-family:"IBM Plex Mono",monospace;
+    font-size:10.5px;color:var(--ink-faint);letter-spacing:.04em;
+  }
+  .place-pin{
+    width:15px;height:15px;border-radius:50%;
+    background:#fff;border:3px solid var(--amber);
+    box-shadow:0 0 0 4px rgba(240,161,50,.22);
+  }
+
   /* ---------- stage ---------- */
   .stage{display:flex;flex-direction:column;min-width:0;min-height:0}
   .bar{
@@ -211,7 +234,7 @@
       <p>NYC DOT / TMC public feeds</p>
     </div>
     <div class="filters">
-      <input class="search" id="q" type="search" placeholder="Search all 983 cameras" autocomplete="off" aria-label="Search cameras by name">
+      <input class="search" id="q" type="search" placeholder="Address, place, or camera name" autocomplete="off" aria-label="Search an address, place, or camera">
       <div class="tally" id="tally">loading camera index…</div>
     </div>
     <div class="rail-scroll" id="rail"></div>
@@ -381,6 +404,94 @@ function searchHits(){
     .sort((a, b) => a.d - b.d);
 }
 
+/* ---------- geocoding ----------
+   NYC GeoSearch (Planning Labs) resolves street addresses authoritatively but
+   knows nothing about landmarks; Photon knows landmarks. Nominatim would cover
+   both but 403s any request a browser can send, since it wants an identifying
+   User-Agent header that fetch() is not allowed to set. So: run both, merge. */
+const NYC_BBOX = "-74.30,40.47,-73.68,40.93";
+let places = [], geoBusy = false, geoSeq = 0, placePin = null, pendingAnchor = null;
+
+async function geosearchNYC(q){
+  const r = await fetch("https://geosearch.planninglabs.nyc/v2/autocomplete?size=5&text=" + encodeURIComponent(q));
+  if (!r.ok) throw new Error("geosearch " + r.status);
+  const j = await r.json();
+  return (j.features || []).map(f => ({
+    label: f.properties.label || f.properties.name,
+    sub:   [f.properties.borough, f.properties.postalcode].filter(Boolean).join(" · "),
+    lat:   f.geometry.coordinates[1],
+    lon:   f.geometry.coordinates[0]
+  }));
+}
+
+async function photon(q){
+  const r = await fetch("https://photon.komoot.io/api/?limit=5&bbox=" + NYC_BBOX + "&q=" + encodeURIComponent(q));
+  if (!r.ok) throw new Error("photon " + r.status);
+  const j = await r.json();
+  return (j.features || []).map(f => {
+    const p = f.properties;
+    const street = [p.housenumber, p.street].filter(Boolean).join(" ");
+    return {
+      label: p.name || street || p.city,
+      sub:   [street && p.name ? street : null, p.district || p.city, p.postcode].filter(Boolean).join(" · "),
+      lat:   f.geometry.coordinates[1],
+      lon:   f.geometry.coordinates[0]
+    };
+  });
+}
+
+async function geocode(q){
+  const seq = ++geoSeq;
+  geoBusy = true;
+  buildRail();
+  const settled = await Promise.allSettled([geosearchNYC(q), photon(q)]);
+  if (seq !== geoSeq) return;                       // a newer keystroke won
+  const merged = [];
+  const seen = new Set();
+  settled.forEach(s => {
+    if (s.status !== "fulfilled") return;
+    s.value.forEach(p => {
+      if (!p.label || !isFinite(p.lat)) return;
+      const key = p.lat.toFixed(4) + "," + p.lon.toFixed(4);
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push(p);
+    });
+  });
+  places = merged.slice(0, 6);
+  geoBusy = false;
+  buildRail();
+}
+
+function goToPlace(p){
+  if (placePin) map.removeLayer(placePin);
+  placePin = L.marker([p.lat, p.lon], {
+    icon: L.divIcon({className:"", html:'<div class="place-pin"></div>', iconSize:[15,15], iconAnchor:[7,7]}),
+    zIndexOffset: 1000, interactive: false
+  }).addTo(map);
+  placePin.bindTooltip(p.label, {direction:"top", offset:[0,-10]});
+
+  document.getElementById("q").value = "";
+  query = "";
+  places = [];
+
+  /* Framing on the address alone lands at a zoom where no camera is in bounds,
+     so fit the address together with the cameras that actually cover it. */
+  const near = ALL
+    .map(c => ({c, d: metresFrom(c, p.lat, p.lon)}))
+    .filter(o => o.d <= 2000)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, Math.max(tiles, 3));
+
+  if (!near.length){ map.setView([p.lat, p.lon], 15); return; }
+
+  pendingAnchor = near[0].c;
+  map.fitBounds(
+    L.latLngBounds([[p.lat, p.lon], ...near.map(o => [o.c.y, o.c.x])]).pad(0.25),
+    {maxZoom: 17}
+  );
+}
+
 /* ---------- feed tile ---------- */
 function makeFeed(cam, offset){
   const root = document.createElement("div");
@@ -441,20 +552,53 @@ function buildRail(){
   const shown = list.slice(0, 300);
   rail.textContent = "";
 
+  /* When searching, places come first — an address is usually what you meant. */
+  if (searching){
+    const ph = document.createElement("div");
+    ph.className = "grp";
+    ph.textContent = "Places";
+    rail.appendChild(ph);
+
+    if (geoBusy && !places.length){
+      const s = document.createElement("div");
+      s.className = "searching";
+      s.textContent = "looking up address…";
+      rail.appendChild(s);
+    } else if (!places.length){
+      const s = document.createElement("div");
+      s.className = "searching";
+      s.textContent = "no address match";
+      rail.appendChild(s);
+    } else {
+      places.forEach(p => {
+        const b = document.createElement("button");
+        b.className = "place";
+        b.innerHTML = '<span class="pin">&#9679;</span><span class="lab"></span><span class="sub"></span>';
+        b.querySelector(".lab").textContent = p.label;
+        b.querySelector(".sub").textContent = p.sub || "";
+        b.title = p.label + (p.sub ? " — " + p.sub : "");
+        b.addEventListener("click", () => goToPlace(p));
+        rail.appendChild(b);
+      });
+    }
+  }
+
   if (!list.length){
     const e = document.createElement("div");
     e.className = "empty";
     e.textContent = searching
-      ? 'No camera matches "' + query + '".'
+      ? 'No camera name matches "' + query + '".'
       : "No cameras in view. Zoom out or pan to a covered area.";
     rail.appendChild(e);
-    tally.textContent = "0 of " + ALL.length + " cameras";
+    tally.textContent = searching
+      ? places.length + " place" + (places.length === 1 ? "" : "s") + " · 0 camera names"
+      : "0 of " + ALL.length + " cameras";
     return;
   }
 
   const h = document.createElement("div");
   h.className = "grp";
-  h.textContent = searching ? "Search results" : "In view";
+  h.textContent = searching ? "Cameras by name" : "In view";
   rail.appendChild(h);
 
   shown.forEach(cam => {
@@ -548,7 +692,8 @@ function onMove(){
   hint.textContent = "z" + z + " · " + n + " camera" + (n === 1 ? "" : "s") + " in view";
   clearTimeout(moveTimer);
   moveTimer = setTimeout(() => {
-    if (follow) build(true);
+    if (pendingAnchor){ anchor = pendingAnchor; pendingAnchor = null; build(false); }
+    else if (follow) build(true);
     buildRail();
   }, 220);
 }
@@ -597,7 +742,26 @@ document.getElementById("btnMap").addEventListener("click", e => {
 })();
 
 /* ---------- controls ---------- */
-document.getElementById("q").addEventListener("input", e => { query = e.target.value; buildRail(); });
+const qEl = document.getElementById("q");
+let geoTimer = null;
+qEl.addEventListener("input", e => {
+  query = e.target.value;
+  buildRail();
+  clearTimeout(geoTimer);
+  const q = query.trim();
+  if (q.length < 3){ places = []; geoBusy = false; buildRail(); return; }
+  geoTimer = setTimeout(() => geocode(q), 320);
+});
+qEl.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  clearTimeout(geoTimer);
+  if (places.length) return goToPlace(places[0]);
+  const hits = searchHits();
+  if (hits.length) return select(hits[0], true);
+  const q = query.trim();
+  if (q.length >= 3) geocode(q).then(() => { if (places.length) goToPlace(places[0]); });
+});
 
 document.querySelectorAll("[data-ms]").forEach(b => b.addEventListener("click", () => {
   period = Number(b.dataset.ms);

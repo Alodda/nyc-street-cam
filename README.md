@@ -12,7 +12,7 @@ A single-file viewer for New York City's public DOT traffic cameras, focused on 
 - **An interactive map picks the area.** Every camera is a dot; pan and zoom to choose a neighbourhood and the list and the wall follow the map bounds, nearest to the centre first. Click a dot to anchor on that camera
 - Street map or satellite imagery, and shortcuts back to W 53rd St or out to all five boroughs
 - The map position is written to the URL, so a link reopens the same view — for example [`#16/40.76260/-73.98400`](https://alodda.github.io/nyc-street-cam/#16/40.76260/-73.98400)
-- Free-text search across all 983 cameras, independent of the map view
+- **Search by address or place** — type `245 W 52nd St` or `August Wilson Theatre`, pick a result, and the map drops a pin and frames the address together with the cameras that cover it. Camera names are searched at the same time, in their own section
 - Wall sizes of **1, 4, 9 or 16** tiles — the wall fills outward from the selected camera in distance order, so "16" on the 800 m radius is the sixteen nearest feeds at once
 - Opens on **Broadway @ 51 St**, the fastest camera on the block — a new frame roughly every second
 - Refresh rate: 1s / 2s / 5s / Hold, with polls staggered across the interval so a 16-tile wall doesn't fire sixteen simultaneous requests
@@ -43,6 +43,8 @@ Measured refresh cadence on the W 53rd cluster:
 ## How it's built
 
 `index.html` plus `cameras.json`. No build step; the only dependencies are two Google Fonts and Leaflet from cdnjs.
+
+Geocoding runs two keyless services in parallel and merges them: [NYC GeoSearch](https://geosearch.planninglabs.nyc/) (Planning Labs) resolves street addresses authoritatively but knows no landmarks, and [Photon](https://photon.komoot.io/) knows landmarks. Nominatim would cover both but returns 403 to anything a browser can send, since it wants an identifying `User-Agent` that `fetch()` is not permitted to set.
 
 Both basemaps are keyless. Every hosted dark basemap now wants an API key — CARTO's returns tiles stamped `API KEY REQUIRED` — so the dark map is plain OpenStreetMap raster inverted with a CSS filter, and satellite is Esri World Imagery. The 983 camera dots render through Leaflet's canvas renderer rather than as DOM markers.
 
